@@ -1,21 +1,31 @@
-from rest_framework.views import APIView
+from rest_framework import viewsets, generics
 from rest_framework.response import Response
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from rest_framework.viewsets import GenericViewSet
-from rest_framework import mixins
-from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin, ListModelMixin
-from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, UpdateAPIView,DestroyAPIView
-from rest_framework import viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from apps.settings.models import Library, Author, Book
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.mixins import ListModelMixin
+from rest_framework.viewsets import GenericViewSet
+from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin
+from rest_framework.generics import RetrieveAPIView
+from rest_framework.decorators import action
+
+from apps.settings.models import Author, Book, Library, Booking,Borrowing
 from apps.settings.serializers import (
-    LibrarySerilizer, 
-    BookSerializer, 
-    AuthorSerializer, 
-    BookDetailSerializer
+    AuthorSerializer, BookSerializer, BookDetailSerializer, LibrarySerilizer, BookingSerializer, BorrowingSerializer
 )
+
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+
 class AuthorView(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
@@ -23,87 +33,85 @@ class AuthorView(viewsets.ModelViewSet):
     search_fields = ['name']
     ordering_fields = ['name', 'birth_year']
     ordering = ['id']
+    pagination_class = StandardResultsSetPagination
 
-# class BookApi(CreateModelMixin,
-#               RetrieveModelMixin,
-#               UpdateModelMixin, 
-#               DestroyModelMixin, 
-#               GenericViewSet):
-#     queryset = Book.objects.all()
-#     serializer_class = BookDetailSerializer
+class AuthorApiList(ListModelMixin, GenericViewSet):
+    queryset = Author.objects.all()
+    serializer_class = AuthorSerializer
 
-# class AuthorApiList(ListModelMixin, GenericViewSet):
-#     queryset = Author.objects.all()
-#     serializer_class = AuthorSerializer
+class AuthorApi(CreateModelMixin,
+                RetrieveModelMixin,
+                UpdateModelMixin,
+                DestroyModelMixin,
+                GenericViewSet):
+    queryset = Author.objects.all()
+    serializer_class = AuthorSerializer
 
-# class AuthorApi(CreateModelMixin,
-#                 RetrieveModelMixin,
-#                 UpdateModelMixin,
-#                 DestroyModelMixin,
-#                 GenericViewSet):
-#     queryset = Author.objects.all()
-#     serializer_class = AuthorSerializer
+class BookView(viewsets.ModelViewSet):
+    queryset = Book.objects.all()
+    serializer_class = BookDetailSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['author', 'library']  # фильтрация по автору и библиотеке
+    search_fields = ['title']
+    ordering_fields = ['title', 'published_year']
+    ordering = ['id']
+    pagination_class = StandardResultsSetPagination
 
-# # Получение всех библиотек
-# class LibraryAPIView(APIView):
-#     def get(self, request, *args, **kwargs):
-#         libraries = Library.objects.all()
-#         serializer = LibrarySerilizer(libraries, many=True)
-#         return Response(serializer.data)
+class BookApi(CreateModelMixin,
+              RetrieveModelMixin,
+              UpdateModelMixin, 
+              DestroyModelMixin, 
+              GenericViewSet):
+    queryset = Book.objects.all()
+    serializer_class = BookDetailSerializer
 
-# # Получение списка книг
-# @method_decorator(cache_page(60), name='dispatch')
-# class BookAPIView(ListAPIView):
-#     queryset = Book.objects.all()
-#     serializer_class = BookSerializer
+class BookApiList(ListModelMixin, GenericViewSet):
+    queryset = Book.objects.all()
+    serializer_class = BookDetailSerializer
 
-# # Получение списка авторов
-# @method_decorator(cache_page(60), name='dispatch')
-# class AuthorAPIView(ListAPIView):
-#     queryset = Author.objects.all()
-#     serializer_class = AuthorSerializer
-
-# # Создание книги
-# class BookCreateAPIView(CreateAPIView):
-#     queryset = Book.objects.all()
-#     serializer_class = BookSerializer
-
-# # Получение книги по pk
-# class BookRetrieveAPIView(RetrieveAPIView):
-#     queryset = Book.objects.all()
-#     serializer_class = BookSerializer
-
-# # Детальная информация по книге по pk
-# class BookDetailAPIView(RetrieveAPIView):
-#     queryset = Book.objects.all()
-#     serializer_class = BookDetailSerializer
-
-# class BookUpdateAPIView(UpdateAPIView):
-#     queryset = Book.objects.all()
-#     serializer_class = BookDetailSerializer
-
-# class BookDeleteAPIView(APIView):
-#     def delete(self, request, pk, *args, **kwargs):
-#         try:
-#             book = Book.objects.get(pk=pk)
-#             book.delete()
-#             return Response({"message": "Book deleted successfully"}, status=204)
-#         except Book.DoesNotExist:
-#             return Response({"error": "Book not found"}, status=404)
+class BookDetailAPIView(RetrieveAPIView):
+    queryset = Book.objects.all()
+    serializer_class = BookDetailSerializer
 
 
-# class AuthorCreateAPIView(CreateAPIView):
-#     queryset = Author.objects.all()
-#     serializer_class = AuthorSerializer
+@method_decorator(cache_page(60), name='dispatch')
+class LibraryListAPIView(generics.ListAPIView):
+    queryset = Library.objects.all()
+    serializer_class = LibrarySerilizer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['name', 'address']
+    ordering_fields = ['name', 'id']
+    ordering = ['id']
 
-# class AuthorRetrieveAPIView(RetrieveAPIView):
-#     queryset = Author.objects.all()
-#     serializer_class = AuthorSerializer
+class BookingViewSet(viewsets.ModelViewSet):
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
+    permission_classes = [IsAuthenticated]  # только авторизованные пользователи
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['user', 'book', 'is_active']  # фильтрация по пользователю, книге, статусу
+    ordering_fields = ['booked_at', 'return_date']
+    ordering = ['booked_at']
+    pagination_class = StandardResultsSetPagination
 
-# class AuthorUpdateAPIView(UpdateAPIView):
-#     queryset = Author.objects.all()
-#     serializer_class = AuthorSerializer
 
-# class AuthorDeleteAPIView(DestroyAPIView):
-#     queryset = Author.objects.all()
-#     serializer_class = AuthorSerializer
+class BookViewSet(viewsets.ModelViewSet):
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer
+    
+
+class BorrowingViewSet(viewsets.ModelViewSet):
+    queryset = Borrowing.objects.all()
+    serializer_class = BorrowingSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        return Borrowing.objects.filter(reader__user=user)
+
+    @action(detail=False, methods=['get'])
+    def return_book(self, request):
+        borrowings = self.get_queryset()
+        if borrowings.returned:
+            return Response({"detail" : "Книга уже возвращена"}, status=400)
+        borrowings.mark_as_returned()
+        return Response({"detail":"Книга успешно возвращена"})
