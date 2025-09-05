@@ -11,7 +11,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.decorators import action
-
+from rest_framework import permissions
 from apps.settings.models import Author, Book, Library, Booking,Borrowing
 from apps.settings.serializers import (
     AuthorSerializer, BookSerializer, BookDetailSerializer, LibrarySerilizer, BookingSerializer, BorrowingSerializer
@@ -87,19 +87,26 @@ class LibraryListAPIView(generics.ListAPIView):
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated]  # только авторизованные пользователи
+    permission_classes = [IsAuthenticated]  
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ['user', 'book', 'is_active']  # фильтрация по пользователю, книге, статусу
+    filterset_fields = ['user', 'book', 'is_active'] 
     ordering_fields = ['booked_at', 'return_date']
     ordering = ['booked_at']
     pagination_class = StandardResultsSetPagination
 
-
+# дз 7
 class BookViewSet(viewsets.ModelViewSet):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
-    
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
 
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+# конец дз 7
 class BorrowingViewSet(viewsets.ModelViewSet):
     queryset = Borrowing.objects.all()
     serializer_class = BorrowingSerializer
@@ -115,3 +122,4 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             return Response({"detail" : "Книга уже возвращена"}, status=400)
         borrowings.mark_as_returned()
         return Response({"detail":"Книга успешно возвращена"})
+

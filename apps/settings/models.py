@@ -1,5 +1,6 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings as apps_settings
+from core.settings import AUTH_USER_MODEL
 
 class Library(models.Model):
     title = models.CharField(max_length=144, verbose_name="Заголовок")
@@ -14,17 +15,21 @@ class Library(models.Model):
         verbose_name_plural = "Библиотеки"
 
 
+
 class Author(models.Model):
-    name = models.CharField(max_length=155)
-    birth_year = models.CharField(max_length=155)
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='user_authors')
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.name
-    
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            if Author.objects.filter(user=self.user).exists():
+                raise ValueError("Этот пользователь уже является автором книги")
+        super().save(*args, **kwargs)
+
     class Meta:
-        verbose_name = "Автор"
-        verbose_name_plural = "Авторы"
-
+        verbose_name = "Автор книги"
+        verbose_name_plural = "Авторы книг"
+        
 
 class Book(models.Model):
     title = models.CharField(max_length=155)
@@ -35,7 +40,7 @@ class Book(models.Model):
         Library,
         on_delete=models.CASCADE,
         related_name='books',
-        null=True,  # обязательно, если уже есть записи
+        null=True,  
         blank=True)
     published_year = models.CharField(max_length=4)
     genre = models.CharField(max_length=155, verbose_name="Жанр", blank=True, null=True)
@@ -52,7 +57,7 @@ class Book(models.Model):
 
 
 class Booking(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bookings')
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='bookings')
     booked_at = models.DateTimeField(auto_now_add=True)
     return_date = models.DateTimeField(null=True, blank=True)  # дата возврата
@@ -75,6 +80,8 @@ class Reader(models.Model):
     class Meta:
         verbose_name = "Читатель"
         verbose_name_plural = "Читатели"
+
+
 
 class Borrowing(models.Model):
     reader = models.ForeignKey(Reader, on_delete=models.SET_NULL, related_name='borrowings', null=True)
@@ -104,3 +111,4 @@ class Borrowing(models.Model):
         verbose_name = "Заимствование"
         verbose_name_plural = "Заимствования"
         ordering = ['-borrowed_at']
+

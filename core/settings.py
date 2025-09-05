@@ -43,7 +43,9 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'django_filters',
-    'apps.settings'
+    'apps.settings',
+    'apps.users',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -75,16 +77,22 @@ TEMPLATES = [
 ]
 
 REST_FRAMEWORK = {
-    # Пагинация по умолчанию
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
 
-    # Подключаем фильтрацию
+   
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
     ]
+
 }
 
 WSGI_APPLICATION = 'core.wsgi.application'
@@ -158,3 +166,4 @@ CACHES = {
     }
 }
 
+AUTH_USER_MODEL = 'users.User'
